@@ -19,7 +19,7 @@ export const authAction = createSafeActionClient({
 
     const { data, error } = await supabase.auth.getSession();
 
-    if (!data?.session) {
+    if (!data?.session || !data.session.provider_token) {
       throw new Error("Session is not valid!");
     }
 
@@ -28,7 +28,7 @@ export const authAction = createSafeActionClient({
       update: {},
       create: {
         supabaseId: data.session.user.id,
-        googleProviderToken: data.session.provider_token!,
+        googleProviderToken: data.session.provider_token,
         displayName: data.session.user.user_metadata.full_name,
       },
     });
