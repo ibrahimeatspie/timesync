@@ -11,29 +11,30 @@ datasource db {
 }
 
 model Profile {
-  supabaseId          String @id @unique
-  googleProviderToken String @unique
-  displayName         String
-  delegated           Meeting[]
-  meetings            Meeting[] @relation("attendees")
-  organizations       Organization[]
+  supabaseId    String         @id @unique
+  providerToken String         @unique
+  email         String         @unique
+  displayName   String
+  delegated     Meeting[]
+  meetings      Meeting[]      @relation("attendees")
+  organizations Organization[]
 }
 
 model Organization {
-  id          String @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
   description String
   members     Profile[]
 }
 
 model Meeting {
-  id          String @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
   description String
   date        DateTime
   length      Int
   location    String
   creatorId   String
-  creator     Profile @relation(fields: [creatorId], references: [supabaseId])
+  creator     Profile   @relation(fields: [creatorId], references: [supabaseId])
   attendees   Profile[] @relation("attendees")
 }

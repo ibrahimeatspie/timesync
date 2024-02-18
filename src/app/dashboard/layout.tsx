@@ -30,7 +30,8 @@ export default async function Layout({
       update: {},
       create: {
         supabaseId: sessionData.session.user.id,
-        googleProviderToken: sessionData.session.provider_token!,
+        providerToken: sessionData.session.provider_token,
+        email: sessionData.session.user.email,
         displayName: sessionData.session.user.user_metadata.full_name,
       },
     });

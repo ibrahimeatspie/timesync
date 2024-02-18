@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action } from "./_generated/server";
+import { action, mutation } from "./_generated/server";
 
 export async function embed(text: string): Promise<number[]> {
   const key = process.env.OPENAI_KEY;
@@ -36,5 +36,21 @@ export const schedule = action({
       limit: 16,
     });
     return results;
+  },
+});
+
+export const insert = mutation({
+  args: {
+    name: v.string(),
+    user: v.string(),
+    start: v.number(),
+    end: v.number(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("events", {
+      title: args.name,
+      user: args.user,
+      embedding: await embed(`${args.start}-${args.end}`),
+    });
   },
 });
