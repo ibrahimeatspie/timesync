@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { revalidatePath } from "next/cache";
 
 export default function UserButton({ user }: { user: User | null }) {
   const supabase = createClient();

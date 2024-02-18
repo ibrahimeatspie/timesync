@@ -26,6 +26,7 @@
     "@types/react-datepicker": "^6.0.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
+    "convex": "^1.9.0",
     "core-js": "^3.36.0",
     "date-fns": "^3.3.1",
     "lucide-react": "^0.331.0",

@@ -13,6 +13,7 @@ datasource db {
 model Profile {
   supabaseId          String @id @unique
   googleProviderToken String @unique
+  displayName         String
   delegated           Meeting[]
   meetings            Meeting[] @relation("attendees")
   organizations       Organization[]
