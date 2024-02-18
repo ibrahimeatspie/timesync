@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { CheckCircleIcon, PackageIcon } from "lucide-react";
 
-export default function Component() {
+export default function Page() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
       <div className="grid gap-4 md:grid-cols-2">

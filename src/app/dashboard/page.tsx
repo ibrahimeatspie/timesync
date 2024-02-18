@@ -7,7 +7,6 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarDaysIcon, ClockIcon, LayoutDashboardIcon } from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
 
 export default function Component() {
   return (
