@@ -35,10 +35,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export const metadata: Metadata = {
-  title: "TimeSync",
-  description: "Save your time",
-};
+// export const metadata: Metadata = {
+//   title: "TimeSync",
+//   description: "Save your time",
+// };
 
 export default function RootLayout({
   children,
