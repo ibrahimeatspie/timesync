@@ -14,27 +14,13 @@ import { Button } from "@/components/ui/button";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import UserButton from "./UserButton";
-import prisma from "@/lib/db";
 
 export default async function Layout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
-  const { data: userData } = await supabase.auth.getUser();
-  const { data: sessionData } = await supabase.auth.getSession();
-
-  if (sessionData?.session) {
-    await prisma.profile.upsert({
-      where: { supabaseId: sessionData.session.user.id },
-      update: {},
-      create: {
-        supabaseId: sessionData.session.user.id,
-        googleProviderToken: sessionData.session.provider_token!,
-        displayName: sessionData.session.user.user_metadata.full_name,
-      },
-    });
-  }
+  const { data } = await supabase.auth.getUser();
 
   return (
     <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
@@ -109,7 +95,7 @@ export default async function Layout({
               </div>
             </form>
           </div>
-          <UserButton user={userData.user} />
+          <UserButton user={data.user} />
         </header>
         {children}
       </div>
