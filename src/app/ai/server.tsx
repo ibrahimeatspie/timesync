@@ -1,16 +1,26 @@
 "use server";
 
+import { createSafeActionClient } from "next-safe-action";
+import prisma from "@/lib/db";
+
+export const action = createSafeActionClient();
+
 import OpenAI from "openai";
 
 import { z } from "zod";
 import { zact } from "zact/server";
+import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { profile } from "console";
+
+const cookieStore = cookies();
+const supabase = createClient(cookieStore);
 
 const openai = new OpenAI({
-  apiKey: "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",
-  dangerouslyAllowBrowser: true,
+  apiKey: process.env.OPENAI_KEY,
 });
 
-function scheduleMeeting(
+async function scheduleMeeting(
   year: number,
   month: number,
   date: number,
@@ -18,6 +28,20 @@ function scheduleMeeting(
   timeRange: number,
   attendees: [string]
 ) {
+  const { data: userData } = await supabase.auth.getUser();
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (sessionData?.session) {
+    const profilesWithAttendeeName = await prisma.profile.findMany({
+      where: {
+        displayName: {
+          in: attendees, // Replace "name" with the name you want to search for
+        },
+      },
+    });
+    console.log("Logging prisma thing");
+    console.log(profilesWithAttendeeName);
+  }
+
   //     var currentDate = new Date();
 
   // // Convert Date object to JSON
@@ -31,12 +55,13 @@ function scheduleMeeting(
     attendees: attendees,
     duration: timeRange * 60 * 60 * 1000,
   };
-  return (
-    "Scheduling meeting with " +
-    attendees +
-    " on" +
-    JSON.stringify(inputtedDate)
-  );
+  // console.log(returnObject);
+
+  return "Scheduled meeting with ";
+  // +
+  // " on" +
+  // JSON.stringify(inputtedDate)
+
   console.log("Scheduling meeting");
   console.log(returnObject);
   //   console.log(attendees);
@@ -116,75 +141,144 @@ const tools: [OpenAI.ChatCompletionTool] = [
   },
 ];
 
-export const validatedAction = zact(z.object({ stuff: z.string() }))(
-  async (input) => {
-    console.log("GETTING INPUT");
-    console.log(input);
-    const messages: OpenAI.ChatCompletionMessageParam[] = [
-      {
-        role: "user",
-        content: input.stuff,
-      },
-    ];
-    //ChatCompletionMessageParam[]
-    const response = await openai.chat.completions.create({
+const schema = z.object({ stuff: z.string() });
+export const validatedAction = action(schema, async (input) => {
+  // console.log("GETTING INPUT");
+  console.log(input.stuff);
+  const messages: OpenAI.ChatCompletionMessageParam[] = [
+    {
+      role: "user",
+      content: input.stuff,
+    },
+  ];
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-3.5-turbo-0125",
+    messages: messages,
+    tools: tools,
+    tool_choice: "auto", // auto is default, but we'll be explicit
+  });
+  const responseMessage = response.choices[0].message;
+  const noResponseData = response.choices;
+  // Step 2: check if the model wanted to call a function
+  const toolCalls = responseMessage.tool_calls;
+  // console.log(toolCalls);
+  if (responseMessage.tool_calls) {
+    console.log("We have a function to call");
+    console.log(messages);
+    // Step 3: call the function
+    // Note: the JSON response may not always be valid; be sure to handle errors
+    const availableFunctions = {
+      schedule_meeting: scheduleMeeting,
+    }; // only one function in this example, but you can have multiple
+    messages.push(responseMessage); // extend conversation with assistant's reply
+
+    for (const toolCall of toolCalls!) {
+      // console.log("WHat is a toolcall");
+      // console.log(toolCall);
+      const functionName = toolCall.function.name;
+      const functionToCall = availableFunctions[functionName];
+      const functionArgs = JSON.parse(toolCall.function.arguments);
+      const functionResponse = await functionToCall(
+        functionArgs.year,
+        functionArgs.month,
+        functionArgs.date,
+        functionArgs.hour,
+        functionArgs.timeRange,
+
+        functionArgs.attendees
+      );
+      // console.log("function response", functionResponse);
+      messages.push({
+        tool_call_id: toolCall.id,
+        role: "tool",
+        name: functionName,
+        content: functionResponse,
+      }); // extend conversation with function response
+    }
+    const secondResponse = await openai.chat.completions.create({
       model: "gpt-3.5-turbo-0125",
       messages: messages,
-      tools: tools,
-      tool_choice: "auto", // auto is default, but we'll be explicit
-    });
-    console.log("LOGGING RESPONSE");
-    // console.log(response.choices[0]);
-    const responseMessage = response.choices[0].message;
-    console.log(responseMessage);
-
-    // Step 2: check if the model wanted to call a function
-    const toolCalls = responseMessage.tool_calls;
-    console.log(toolCalls);
-    if (responseMessage.tool_calls) {
-      console.log("We have a function to call");
-      // Step 3: call the function
-      // Note: the JSON response may not always be valid; be sure to handle errors
-      const availableFunctions = {
-        schedule_meeting: scheduleMeeting,
-      }; // only one function in this example, but you can have multiple
-      messages.push(responseMessage); // extend conversation with assistant's reply
-
-      for (const toolCall of toolCalls!) {
-        console.log("WHat is a toolcall");
-        console.log(toolCall);
-        const functionName = toolCall.function.name;
-        const functionToCall = availableFunctions[functionName];
-        const functionArgs = JSON.parse(toolCall.function.arguments);
-        const functionResponse = functionToCall(
-          functionArgs.year,
-          functionArgs.month,
-          functionArgs.date,
-          functionArgs.hour,
-          functionArgs.timeRange,
-
-          functionArgs.attendees
-        );
-        messages.push({
-          tool_call_id: toolCall.id,
-          role: "tool",
-          name: functionName,
-          content: functionResponse,
-        }); // extend conversation with function response
-      }
-      const secondResponse = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo-0125",
-        messages: messages,
-      }); // get a new response from the model where it can see the function response
-      console.log("SECOND RESPONSE");
-      console.log(secondResponse.choices[0].message);
-      return secondResponse.choices[0].message;
-    } else {
-      return responseMessage;
-      console.log("We have no function to call");
-    }
+    }); // get a new response from the model where it can see the function response
+    console.log("SECOND RESPONSE");
+    console.log(secondResponse);
+    return secondResponse.choices;
+  } else {
+    console.log("NO FUNCTION TO CALL");
+    return noResponseData;
+    console.log("We have no function to call");
   }
-);
+});
+
+// export const validatedAction = zact(z.object({ stuff: z.string() }))(
+//   async (input) => {
+//     console.log("GETTING INPUT");
+//     console.log(input);
+//     const messages: OpenAI.ChatCompletionMessageParam[] = [
+//       {
+//         role: "user",
+//         content: input.stuff,
+//       },
+//     ];
+//     //ChatCompletionMessageParam[]
+//     const response = await openai.chat.completions.create({
+//       model: "gpt-3.5-turbo-0125",
+//       messages: messages,
+//       tools: tools,
+//       tool_choice: "auto", // auto is default, but we'll be explicit
+//     });
+//     console.log("LOGGING RESPONSE");
+//     // console.log(response.choices[0]);
+//     const responseMessage = response.choices[0].message;
+//     console.log(responseMessage);
+
+//     // Step 2: check if the model wanted to call a function
+//     const toolCalls = responseMessage.tool_calls;
+//     console.log(toolCalls);
+//     if (responseMessage.tool_calls) {
+//       console.log("We have a function to call");
+//       // Step 3: call the function
+//       // Note: the JSON response may not always be valid; be sure to handle errors
+//       const availableFunctions = {
+//         schedule_meeting: scheduleMeeting,
+//       }; // only one function in this example, but you can have multiple
+//       messages.push(responseMessage); // extend conversation with assistant's reply
+
+//       for (const toolCall of toolCalls!) {
+//         console.log("WHat is a toolcall");
+//         console.log(toolCall);
+//         const functionName = toolCall.function.name;
+//         const functionToCall = availableFunctions[functionName];
+//         const functionArgs = JSON.parse(toolCall.function.arguments);
+//         const functionResponse = functionToCall(
+//           functionArgs.year,
+//           functionArgs.month,
+//           functionArgs.date,
+//           functionArgs.hour,
+//           functionArgs.timeRange,
+
+//           functionArgs.attendees
+//         );
+//         messages.push({
+//           tool_call_id: toolCall.id,
+//           role: "tool",
+//           name: functionName,
+//           content: functionResponse,
+//         }); // extend conversation with function response
+//       }
+//       const secondResponse = await openai.chat.completions.create({
+//         model: "gpt-3.5-turbo-0125",
+//         messages: messages,
+//       }); // get a new response from the model where it can see the function response
+//       console.log("SECOND RESPONSE");
+//       console.log(secondResponse.choices[0].message);
+//       return secondResponse.choices[0].message;
+//     } else {
+//       return responseMessage;
+//       console.log("We have no function to call");
+//     }
+//   }
+// );
 
 export default async function TalkAI() {
   const completion = await openai.chat.completions.create({

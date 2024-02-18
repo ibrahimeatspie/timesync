@@ -61,17 +61,29 @@ export default function Dashboard() {
                     ...prev,
                     { text: currText, time: Date().toString() },
                   ]);
-                  validatedAction({ stuff: inputRef.current.value }).then(
-                    (response) => {
-                      setChat((prev) => [
-                        ...prev,
-                        { text: response.content!, time: Date().toString() },
-                      ]);
-                      console.log("response!", response);
-                    }
-                  );
+                  const res = await validatedAction({
+                    stuff: inputRef.current.value,
+                  }).then((data) => {
+                    console.log(data.data[0].message.content);
+                    setChat((prev) => [
+                      ...prev,
+                      {
+                        text: data.data[0].message.content,
+                        time: Date().toString(),
+                      },
+                    ]);
+                  });
+                  console.log(res);
+                  // .then(
+                  //   (response) => {
+                  //     setChat((prev) => [
+                  //       ...prev,
+                  //       { text: response.content!, time: Date().toString() },
+                  //     ]);
+                  //     console.log("response!", response);
+                  //   }
+                  // );
                   inputRef.current.value = "";
-
                 }
               }}
             >
