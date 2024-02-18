@@ -29,6 +29,7 @@ export const authAction = createSafeActionClient({
       create: {
         supabaseId: data.session.user.id,
         googleProviderToken: data.session.provider_token!,
+        displayName: data.session.user.user_metadata.full_name,
       },
     });
 
